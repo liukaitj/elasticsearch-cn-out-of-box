@@ -46,10 +46,6 @@ elasticsearch-cn-out-of-box
 
 ![puglin_oob2](https://raw.githubusercontent.com/hangxin1940/elasticsearch-cn-out-of-box/master/plugin_oob2.png)
 
-## 已知问题
-
-使用 `ik_max_word` 与 `ik_smart` 时会出现找不到class的异常，`ik`可正常使用 
-
 ## elasticsearch.yml
 
 ```yml
@@ -513,7 +509,7 @@ index:
         type: combo
         sub_analyzers: 
          - ansj_index
-         - ik
+         - ik_smart
          - mmseg_complex
          - uax_url_email
          - s2t_convert
