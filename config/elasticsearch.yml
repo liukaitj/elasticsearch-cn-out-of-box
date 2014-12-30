@@ -457,7 +457,7 @@ index:
         type: combo
         sub_analyzers: 
          - ansj_index
-         - ik_smart
+         - ik
          - mmseg_complex
          - uax_url_email
          - s2t_convert
