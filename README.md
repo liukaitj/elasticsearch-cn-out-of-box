@@ -5,22 +5,22 @@ elasticsearch-cn-out-of-box
 
 ======
 
-* [elasticsearch](http://www.elasticsearch.org/) 1.4.2
+* [elasticsearch](http://www.elasticsearch.org/) 1.5.1
 * [servicewrapper](https://github.com/elasticsearch/elasticsearch-servicewrapper) 0.90
 
 ## 站点插件:
 * oob
 * [bigdesk](http://bigdesk.org/) 2.5.0
 * [head](http://mobz.github.io/elasticsearch-head/) 
-* [kopf](https://github.com/lmenezes/elasticsearch-kopf) 1.2.5
+* [kopf](https://github.com/lmenezes/elasticsearch-kopf) 1.4.8
 * [segmentspy](https://github.com/polyfractal/elasticsearch-segmentspy)
-* [inquisitor](https://github.com/polyfractal/elasticsearch-inquisitor)
+* [inquisitor](https://github.com/polyfractal/elasticsearch-inquisitor) 0.1.2
 * [paramedic](https://github.com/karmi/elasticsearch-paramedic) 
 * [hq](http://www.elastichq.org/) 
 
 ## 分词插件
 
-* [analysis-smartcn](https://github.com/elasticsearch/elasticsearch-analysis-smartcn) 2.3.1
+* [analysis-smartcn](https://github.com/elasticsearch/elasticsearch-analysis-smartcn) 2.5.0
 * [analysis-mmseg](https://github.com/medcl/elasticsearch-analysis-mmseg) 1.2.2
 * [analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik) 1.2.9
 * [analysis-stconvert](https://github.com/medcl/elasticsearch-analysis-stconvert) 1.3.0
@@ -31,8 +31,7 @@ elasticsearch-cn-out-of-box
 
 ## 其他插件
 
-*  [jetty](https://github.com/sonian/elasticsearch-jetty) oob-1.4.2
-*  [mapper-attachments](https://github.com/elasticsearch/elasticsearch-mapper-attachments) 2.4.1
+*  [mapper-attachments](https://github.com/elasticsearch/elasticsearch-mapper-attachments) 2.5.0
 
 ## 为 inquisitor 插件增加自定义分析器的预览等
 
@@ -45,6 +44,10 @@ elasticsearch-cn-out-of-box
 ![puglin_oob](https://raw.githubusercontent.com/hangxin1940/elasticsearch-cn-out-of-box/master/puglin_oob.png)
 
 ![puglin_oob2](https://raw.githubusercontent.com/hangxin1940/elasticsearch-cn-out-of-box/master/plugin_oob2.png)
+
+## 已知问题
+
+使用 `ik_max_word` 与 `ik_smart` 时会出现找不到class的异常，`ik`可正常使用 
 
 ## elasticsearch.yml
 
@@ -88,22 +91,7 @@ discovery.zen.ping.multicast.enabled: true
 #index.search.slowlog.threshold.fetch.info: 800ms
 #index.search.slowlog.threshold.fetch.debug: 500ms
 #index.search.slowlog.threshold.fetch.trace: 200ms
-
-
-# 启用jetty插件提供http服务
-http.type: com.sonian.elasticsearch.http.jetty.JettyHttpServerTransport
-
-
-# sonian.elasticsearch.http.jetty:
-    # ==== 开启 https
-    #ssl_port: 9443
-    #config: jetty.xml,jetty-ssl.xml, jetty-gzip.xml
-    #keystore_password: "OBF:1nc01vuz1w8f1w1c1rbu1rac1w261w9b1vub1ndq"
-    
-    # ==== 开启用户认证
-    # config: jetty.xml,jetty-hash-auth.xml,jetty-restrict-all.xml
-    
-    
+ 
 
 # 索引配置
 index:
@@ -505,20 +493,22 @@ index:
         filter: [standard, lowercase, stop] 
  
  # ======== combo ========       
-      combo:
-        type: combo
-        sub_analyzers: 
-         - ansj_index
-         - ik_smart
-         - mmseg_complex
-         - uax_url_email
-         - s2t_convert
-         - t2s_convert
-         - smartcn
-         - simple_english_analyzer
+ #     combo:
+ #      type: combo
+ #       sub_analyzers: 
+ #        - ansj_index
+ #        - ik_smart
+ #        - mmseg_complex
+ #        - uax_url_email
+ #        - s2t_convert
+ #         - t2s_convert
+ #        - smartcn
+ #        - simple_english_analyzer
 
 # 默认分析器
-index.analysis.analyzer.default.type: combo
+#index.analysis.analyzer.default.type: combo
+
+
 # 线程池设置
 threadpool:   
     index:   

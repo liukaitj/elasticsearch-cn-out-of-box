@@ -13,13 +13,14 @@ module.exports = function(config) {
     // list of files / patterns to load in the browser
     files: [
       '../src/lib/angularjs/angular.min.js',
+      '../src/lib/angularjs/angular-route.min.js',
       '../src/lib/jquery/jquery-1.10.2.min.js',
       '../src/lib/ace/*.js',
       '../src/lib/jsontree/*.js',
       '../src/kopf/*.js',
       '../src/kopf/**/*.js',
       'angular-mocks.js',
-      'jasmine/*.tests.js'
+      'jasmine/**/*.tests.js'
     ],
 
     // list of files to exclude

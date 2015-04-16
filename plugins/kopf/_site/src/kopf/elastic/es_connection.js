@@ -3,17 +3,23 @@
 // http://localhost:9200
 // http://user:password@localhost:9200
 // https://localhost:9200
-function ESConnection(url) {
-	var protected_url = /^(https|http):\/\/(\w+):(\w+)@(.*)/i;
-	this.host = "http://localhost:9200"; // default
-	if (notEmpty(url)) {
-		var connection_parts = protected_url.exec(url);
-		if (isDefined(connection_parts)) {
-			this.host = connection_parts[1] + "://" + connection_parts[4];
-			this.username = connection_parts[2];
-			this.password = connection_parts[3];
-		} else {
-			this.host = url;
-		}		
-	}
+function ESConnection(url, withCredentials) {
+  if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) {
+    url = 'http://' + url;
+  }
+  var protectedUrl = /^(https|http):\/\/(\w+):(\w+)@(.*)/i;
+  this.host = 'http://localhost:9200'; // default
+  this.withCredentials = withCredentials;
+  if (notEmpty(url)) {
+    var connectionParts = protectedUrl.exec(url);
+    if (isDefined(connectionParts)) {
+      this.host = connectionParts[1] + '://' + connectionParts[4];
+      this.username = connectionParts[2];
+      this.password = connectionParts[3];
+      this.auth = 'Basic ' + window.btoa(this.username + ':' + this.password);
+    } else {
+      this.host = url;
+    }
+  }
+
 }

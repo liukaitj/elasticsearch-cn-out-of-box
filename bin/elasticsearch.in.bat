@@ -3,9 +3,8 @@
 if DEFINED JAVA_HOME goto cont
 
 :err
-echo JAVA_HOME environment variable must be set!
-pause
-exit
+ECHO JAVA_HOME environment variable must be set! 1>&2
+EXIT /B 1 
 
 :cont
 set SCRIPT_DIR=%~dp0
@@ -43,9 +42,6 @@ if NOT "%ES_DIRECT_SIZE%" == "" (
 set JAVA_OPTS=%JAVA_OPTS% -XX:MaxDirectMemorySize=%ES_DIRECT_SIZE%
 )
 
-REM reduce the per-thread stack size
-set JAVA_OPTS=%JAVA_OPTS% -Xss256k
-
 REM set to headless, just in case
 set JAVA_OPTS=%JAVA_OPTS% -Djava.awt.headless=true
 
@@ -82,5 +78,5 @@ set JAVA_OPTS=%JAVA_OPTS% -XX:+DisableExplicitGC
 REM Ensure UTF-8 encoding by default (e.g. filenames)
 set JAVA_OPTS=%JAVA_OPTS% -Dfile.encoding=UTF-8
 
-set ES_CLASSPATH=%ES_CLASSPATH%;%ES_HOME%/lib/elasticsearch-1.4.2.jar;%ES_HOME%/lib/*;%ES_HOME%/lib/sigar/*
+set ES_CLASSPATH=%ES_CLASSPATH%;%ES_HOME%/lib/elasticsearch-1.5.1.jar;%ES_HOME%/lib/*;%ES_HOME%/lib/sigar/*
 set ES_PARAMS=-Delasticsearch -Des-foreground=yes -Des.path.home="%ES_HOME%"

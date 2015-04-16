@@ -42,12 +42,6 @@ h6 { color: #d0d0d0; font-variant:small-caps; font-weight: 500; }
 	text-align: left;
 	background: #333 !important;
 }
-
-.tooltip {
-  font-size: 13px;
-  opacity: 1.0 !important;
-}
-
 .tooltip-inner {
 	background: #222;
     color: #999;
@@ -152,7 +146,6 @@ h6 { color: #d0d0d0; font-variant:small-caps; font-weight: 500; }
 .navbar-cluster-status- {
 	background-color: #ccc !important;
 	color: #666 !important;
-	height: 38px !important;
 }
 .navbar-cluster-status- > li.active > a {
 	background-color: #666 !important;
@@ -241,9 +234,9 @@ h6 { color: #d0d0d0; font-variant:small-caps; font-weight: 500; }
 .navbar-brand {
 	padding: 0px 15px 0px 0px;
 	margin-left: 25px;
-	font-size: 38px;
+	font-size: 26px;
 	font-variant: small-caps;
-	line-height: 32px;
+	line-height: 26px;
 	font-weight: 100;
 	color: #dff0d8;
 }
@@ -264,11 +257,11 @@ h6 { color: #d0d0d0; font-variant:small-caps; font-weight: 500; }
 }
 .navbar-app-settings {
 	color: #000000;
-	width: auto;
-	padding-left: 10px;
-	padding-right: 10px;
 	background: #222;
 	border: 1px solid #444;
+}
+.navbar-app-setting {
+	color: #d0d0d0;
 }
 .navbar-menu-item {
 	font-size: 13px;
@@ -279,20 +272,11 @@ h6 { color: #d0d0d0; font-variant:small-caps; font-weight: 500; }
 	color: #444 !important;
 	font-weight: 300 !important;
 }
-table.overview {
-	table-layout:fixed;
-}
 table {
 	border: 1px solid #444;
 }
 thead.overview {
 	border: 1px solid #444;
-}
-.index-cell {
-	max-height: 40px !important;
-	vertical-align: top !important;
-	border-bottom: 0px !important;
-	border: 1px solid #444 !important;
 }
 .form-control {
 	background: #333;
@@ -426,4 +410,14 @@ thead.overview {
 .popover {
 	border: 0px;
 	padding: 0px;
+}
+.dropdown-menu > li > a {
+    color: #d0d0d0;
+}
+.dropdown-menu > li > a:hover {
+    background: #2c2c2c;
+    color: #d0d0d0;
+}
+.dropdown-menu {
+    background: #222;
 }

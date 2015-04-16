@@ -1,4 +1,4 @@
-<div ng-controller="ClusterSettingsController">
+<div>
 	<div class="content-panel">
 		<div class="row">
 			<div class="col-lg-12">
@@ -14,9 +14,9 @@
 			<div class="row">
 				<div class="col-sm-2 col-xs-12">
 					<ul class="nav nav-pills nav-stacked" id="cluster_settings_tabs">
-						<li><a href="#cluster_settings_cluster" data-toggle="tab">cluster</a></li>
-						<li><a href="#cluster_settings_routing" data-toggle="tab">routing</a></li>
-						<li><a href="#cluster_settings_recovery" data-toggle="tab">recovery</a></li>
+						<li><a target="_self" href="#cluster_settings_cluster" data-toggle="tab">cluster</a></li>
+						<li><a target="_self" href="#cluster_settings_routing" data-toggle="tab">routing</a></li>
+						<li><a target="_self" href="#cluster_settings_recovery" data-toggle="tab">recovery</a></li>
 					</ul>
 				</div>
 				<div class="col-sm-10 col-xs-12">
@@ -33,7 +33,7 @@
 						<form class="form-inline" role="form">
 						  <div class="form-group">
 						  </div>
-							<button type="button" class="btn btn-default btn-sm" ng-click='home_screen()'>back</button>
+							<a href="#!cluster" class="btn btn-default btn-sm">back</a>
 							<button type="button" class="btn btn-primary btn-sm" ng-click='save()'><i class="fa fa-check"></i> save</button>
 						</form>
 					</span>
