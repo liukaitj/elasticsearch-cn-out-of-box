@@ -13,8 +13,8 @@
 }
 
 div.sidebar-container {
-    width : 100px;
-    height : 200px;
+    width : 150px;
+    height : 230px;
     position:fixed;
     background-color:#4F8FFF;
     filter: alpha(opacity=87);

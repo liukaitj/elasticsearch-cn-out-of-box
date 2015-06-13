@@ -5,33 +5,34 @@ elasticsearch-cn-out-of-box
 
 ======
 
-* [elasticsearch](http://www.elasticsearch.org/) 1.5.1
+* [elasticsearch](http://www.elastic.co/) v1.6.0
 * [servicewrapper](https://github.com/elasticsearch/elasticsearch-servicewrapper) 0.90
 
 ## 站点插件:
 * oob
-* [bigdesk](http://bigdesk.org/) 2.5.0
+* [bigdesk](http://bigdesk.org/) v2.5.0
 * [head](http://mobz.github.io/elasticsearch-head/) 
-* [kopf](https://github.com/lmenezes/elasticsearch-kopf) 1.4.8
-* [segmentspy](https://github.com/polyfractal/elasticsearch-segmentspy)
-* [inquisitor](https://github.com/polyfractal/elasticsearch-inquisitor) 0.1.2
+* [kopf](https://github.com/lmenezes/elasticsearch-kopf) v1.5.2
+* [segmentspy](https://github.com/polyfractal/elasticsearch-segmentspy) v0.2.0
+* [inquisitor](https://github.com/polyfractal/elasticsearch-inquisitor) v0.1.2
 * [paramedic](https://github.com/karmi/elasticsearch-paramedic) 
 * [hq](http://www.elastichq.org/) 
+* [marvel](https://www.elastic.co/products/marvel) v1.3.1
 
 ## 分词插件
 
-* [analysis-smartcn](https://github.com/elasticsearch/elasticsearch-analysis-smartcn) 2.5.0
-* [analysis-mmseg](https://github.com/medcl/elasticsearch-analysis-mmseg) 1.2.2
-* [analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik) 1.2.9
-* [analysis-stconvert](https://github.com/medcl/elasticsearch-analysis-stconvert) 1.3.0
-* [analysis-pinyin](https://github.com/medcl/elasticsearch-analysis-pinyin) 1.2.2
-* [analysis-ansj](https://github.com/4onni/elasticsearch-analysis-ansj) 1.x.1
-* [analysis-string2int](https://github.com/medcl/elasticsearch-analysis-string2int) 1.3.0
-* [analysis-combo](https://github.com/yakaz/elasticsearch-analysis-combo/) 1.5.1
+* [analysis-smartcn](https://github.com/elasticsearch/elasticsearch-analysis-smartcn) v2.6.0
+* [analysis-mmseg](https://github.com/medcl/elasticsearch-analysis-mmseg) v1.2.2
+* [analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik) v1.3.0
+* [analysis-stconvert](https://github.com/medcl/elasticsearch-analysis-stconvert) v1.3.0
+* [analysis-pinyin](https://github.com/medcl/elasticsearch-analysis-pinyin) v1.2.2
+* [analysis-ansj](https://github.com/4onni/elasticsearch-analysis-ansj) v1.x.1
+* [analysis-string2int](https://github.com/medcl/elasticsearch-analysis-string2int) v1.3.0
+* [analysis-combo](https://github.com/yakaz/elasticsearch-analysis-combo/) v1.5.1
 
 ## 其他插件
 
-*  [mapper-attachments](https://github.com/elasticsearch/elasticsearch-mapper-attachments) 2.5.0
+*  [mapper-attachments](https://github.com/elasticsearch/elasticsearch-mapper-attachments) v2.6.0
 
 ## 为 inquisitor 插件增加自定义分析器的预览等
 

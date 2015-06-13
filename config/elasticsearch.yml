@@ -471,20 +471,17 @@ index:
         filter: [standard, lowercase, stop] 
  
  # ======== combo ========       
- #     combo:
- #      type: combo
- #       sub_analyzers: 
- #        - ansj_index
- #        - ik_smart
- #        - mmseg_complex
- #        - uax_url_email
- #        - s2t_convert
- #         - t2s_convert
- #        - smartcn
- #        - simple_english_analyzer
-
-# 默认分析器
-#index.analysis.analyzer.default.type: combo
+      combo:
+        type: combo
+        sub_analyzers: 
+          - standard
+          - ik_smart
+          - mmseg_complex
+          - uax_url_email
+          - s2t_convert
+          - t2s_convert
+          - smartcn
+          - simple_english_analyzer
 
 # 线程池设置
 threadpool:   

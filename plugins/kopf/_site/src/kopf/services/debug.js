@@ -1,19 +1,33 @@
-kopf.factory('DebugService', ['$location', function($location) {
+kopf.factory('DebugService', ['$filter', function($filter) {
 
-  this.enabled = $location.search().debug === 'true';
+  var MaxMessages = 1000;
 
-  this.toggleEnabled = function() {
-    this.enabled = !this.enabled;
-  };
+  var messages = [];
 
-  this.isEnabled = function() {
-    return this.enabled;
-  };
+  var updatedAt = 0;
 
-  this.debug = function(message) {
-    if (this.isEnabled()) {
-      console.log(message);
+  var addMessage = function(message) {
+    var date = new Date();
+    messages.push($filter('date')(date, '[yyyy-MM-dd HH:mm:ss] ') +  message);
+    if (messages.length > MaxMessages) {
+      messages.shift();
     }
+    updatedAt = date.getTime();
+  };
+
+  this.debug = function(message, data) {
+    addMessage(message);
+    if (data) {
+      addMessage(JSON.stringify(data));
+    }
+  };
+
+  this.getUpdatedAt = function() {
+    return updatedAt;
+  };
+
+  this.getMessages = function() {
+    return messages;
   };
 
   return this;

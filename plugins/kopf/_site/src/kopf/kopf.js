@@ -77,5 +77,17 @@ kopf.config(function($routeProvider, $locationProvider) {
         templateUrl: 'partials/index_settings.html',
         controller: 'IndexSettingsController'
       }).
+      when('/indexTemplates', {
+        templateUrl: 'partials/index_templates.html',
+        controller: 'IndexTemplatesController'
+      }).
+      when('/cat', {
+        templateUrl: 'partials/cat.html',
+        controller: 'CatController'
+      }).
+      when('/hotthreads', {
+        templateUrl: 'partials/hotthreads.html',
+        controller: 'HotThreadsController'
+      }).
       otherwise({redirectTo: '/cluster'});
 });

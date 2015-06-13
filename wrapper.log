@@ -1,0 +1,13 @@
+WARN   | wrapper  | 2015/06/13 10:40:11 | Unable to write to the configured log directory: /opt/elasticsearch-cn-out-of-box/elasticsearch-1.6.0/logs (没有那个文件或目录)
+WARN   | wrapper  | 2015/06/13 10:40:11 |   The directory does not exist.
+WARN   | wrapper  | 2015/06/13 10:40:11 | Unable to write to the configured log file: /opt/elasticsearch-cn-out-of-box/elasticsearch-1.6.0/logs/service.log (没有那个文件或目录)
+WARN   | wrapper  | 2015/06/13 10:40:11 |   Falling back to the default file in the current working directory: wrapper.log
+STATUS | wrapper  | 2015/06/13 10:40:11 | --> Wrapper Started as Daemon
+STATUS | wrapper  | 2015/06/13 10:40:11 | Java Service Wrapper Community Edition 64-bit 3.5.14
+STATUS | wrapper  | 2015/06/13 10:40:11 |   Copyright (C) 1999-2011 Tanuki Software, Ltd. All Rights Reserved.
+STATUS | wrapper  | 2015/06/13 10:40:11 |     http://wrapper.tanukisoftware.com
+STATUS | wrapper  | 2015/06/13 10:40:11 | 
+STATUS | wrapper  | 2015/06/13 10:40:11 | Launching a JVM...
+INFO   | jvm 1    | 2015/06/13 10:40:12 | WrapperManager: Initializing...
+STATUS | wrapper  | 2015/06/13 10:40:25 | TERM trapped.  Shutting down.
+STATUS | wrapper  | 2015/06/13 10:40:29 | <-- Wrapper Stopped

@@ -77,6 +77,18 @@ kopf.config(function($routeProvider, $locationProvider) {
         templateUrl: 'partials/index_settings.html',
         controller: 'IndexSettingsController'
       }).
+      when('/indexTemplates', {
+        templateUrl: 'partials/index_templates.html',
+        controller: 'IndexTemplatesController'
+      }).
+      when('/cat', {
+        templateUrl: 'partials/cat.html',
+        controller: 'CatController'
+      }).
+      when('/hotthreads', {
+        templateUrl: 'partials/hotthreads.html',
+        controller: 'HotThreadsController'
+      }).
       otherwise({redirectTo: '/cluster'});
 });
 
@@ -431,6 +443,50 @@ kopf.controller('BenchmarkController', ['$scope', '$location', '$timeout',
   }
 ]);
 
+kopf.controller('CatController', ['$scope', 'ElasticService', 'AlertService',
+  function($scope, ElasticService, AlertService) {
+
+    $scope.apis = [
+      'aliases',
+      //'allocation',
+      'count',
+      //'fielddata',
+      //'health',
+      //'indices',
+      'master',
+      //'nodes',
+      //'pending_tasks',
+      'plugins',
+      'recovery',
+      //'thread_pool',
+      //'shards',
+      //'segments'
+    ];
+
+    $scope.api = '';
+
+    $scope.result = undefined;
+
+    $scope.execute = function() {
+      if ($scope.api.length > 0) {
+        ElasticService.executeCatRequest(
+            $scope.api,
+            function(result) {
+              $scope.result = result;
+            },
+            function(error) {
+              AlertService.error('Error while fetching data', error);
+              $scope.result = undefined;
+            }
+        );
+      } else {
+        AlertService.error('You must select an API');
+      }
+    };
+  }
+
+]);
+
 kopf.controller('ClusterHealthController', ['$scope', '$location', '$timeout',
   '$sce', '$http', 'AlertService', 'ConfirmDialogService', 'ElasticService',
   function($scope, $location, $timeout, $sce, $http, AlertService,
@@ -624,9 +680,11 @@ kopf.controller('ClusterOverviewController', ['$scope', '$window',
           $scope.cluster = ElasticService.cluster;
           $scope.setIndices(ElasticService.getIndices());
           $scope.setNodes(ElasticService.getNodes());
-          if ($scope.cluster && $scope.cluster.status == 'green') {
-            // since control is only exposed when cluster is unhealthy,
-            // return it to default value when cluster is green again
+          if ($scope.cluster &&
+              $scope.cluster.unassigned_shards === 0 &&
+              $scope.cluster.relocating_shards === 0 &&
+              $scope.cluster.initializing_shards === 0) {
+            // since control is only exposed when shards are moving
             $scope.index_filter.healthy = true;
           }
         }
@@ -989,12 +1047,32 @@ kopf.controller('CreateIndexController', ['$scope', 'AlertService',
   }
 ]);
 
+kopf.controller('DebugController', ['$scope', 'DebugService',
+  function($scope, DebugService) {
+
+    $scope.messages = [];
+
+    $scope.visible = false;
+
+    $scope.$watch(
+        function() {
+          return $scope.visible ? DebugService.getUpdatedAt() : 0;
+        },
+        function(newValue, oldValue) {
+          $scope.messages = $scope.visible ? DebugService.getMessages() : [];
+        }
+    );
+
+  }
+
+]);
+
 kopf.controller('GlobalController', ['$scope', '$location', '$sce', '$window',
   'AlertService', 'ElasticService', 'ExternalSettingsService', 'PageService',
   function($scope, $location, $sce, $window, AlertService, ElasticService,
            ExternalSettingsService, PageService) {
 
-    $scope.version = '1.4.8';
+    $scope.version = '1.5.2';
 
     $scope.modal = new ModalControls();
 
@@ -1044,6 +1122,57 @@ kopf.controller('GlobalController', ['$scope', '$location', '$sce', '$window',
     };
 
   }
+]);
+
+kopf.controller('HotThreadsController', ['$scope', 'ElasticService',
+  'AlertService',
+  function($scope, ElasticService, AlertService) {
+
+    $scope.node = undefined;
+
+    $scope.nodes = [];
+
+    $scope.type = 'cpu';
+
+    $scope.types = ['cpu', 'wait', 'block'];
+
+    $scope.interval = 500;
+
+    $scope.threads = 3;
+
+    $scope.ignoreIdleThreads = true;
+
+    $scope.nodesHotThreads = undefined;
+
+    $scope.execute = function() {
+      ElasticService.getHotThreads($scope.node, $scope.type, $scope.threads,
+          $scope.interval, $scope.ignoreIdleThreads,
+          function(result) {
+            $scope.nodesHotThreads = result;
+          },
+          function(error) {
+            AlertService.error('Error while fetching hot threads', error);
+            $scope.nodesHotThreads = undefined;
+          }
+      );
+    };
+
+    $scope.$watch(
+        function() {
+          return ElasticService.cluster;
+        },
+        function(current, previous) {
+          $scope.nodes = ElasticService.getNodes();
+        },
+        true
+    );
+
+    $scope.initializeController = function() {
+      $scope.nodes = ElasticService.getNodes();
+    };
+
+  }
+
 ]);
 
 kopf.controller('IndexSettingsController', ['$scope', '$location',
@@ -1099,11 +1228,116 @@ kopf.controller('IndexSettingsController', ['$scope', '$location',
   }
 ]);
 
+kopf.controller('IndexTemplatesController', ['$scope', 'ConfirmDialogService',
+  'AlertService', 'AceEditorService', 'ElasticService',
+  function($scope, ConfirmDialogService, AlertService, AceEditorService,
+           ElasticService) {
+
+    var TemplateBase = JSON.stringify(
+        {
+          template: 'template pattern(e.g.: index*)',
+          settings: {},
+          mappings: {},
+          aliases: {}
+        },
+        undefined,
+        2
+    );
+
+    $scope.editor = undefined;
+
+    $scope.paginator = new Paginator(1, 10, [],
+        new IndexTemplateFilter('', ''));
+
+    $scope.template = new IndexTemplate('', {});
+
+    $scope.$watch('paginator', function(filter, previous) {
+      $scope.page = $scope.paginator.getPage();
+    }, true);
+
+    $scope.initEditor = function() {
+      if (!angular.isDefined($scope.editor)) {
+        $scope.editor = AceEditorService.init('index-template-editor');
+        $scope.editor.setValue(TemplateBase);
+      }
+    };
+
+    $scope.loadTemplates = function() {
+      ElasticService.getIndexTemplates(
+          function(templates) {
+            $scope.paginator.setCollection(templates);
+            $scope.page = $scope.paginator.getPage();
+          },
+          function(error) {
+            AlertService.error('Error while loading templates', error);
+          }
+      );
+    };
+
+    $scope.createIndexTemplate = function() {
+      if ($scope.template.name) {
+        if ($scope.editor.hasContent()) {
+          $scope.editor.format();
+          if (!isDefined($scope.editor.error)) {
+            $scope.template.body = $scope.editor.getValue();
+            ElasticService.createIndexTemplate($scope.template,
+                function(response) {
+                  $scope.loadTemplates();
+                  AlertService.success(
+                      'Template successfully created',
+                      response
+                  );
+                },
+                function(error) {
+                  AlertService.error('Error while creating template', error);
+                }
+            );
+          }
+        } else {
+          AlertService.error('Template body can\'t be empty');
+        }
+      } else {
+        AlertService.error('Template name can\'t be empty');
+      }
+    };
+
+    $scope.deleteIndexTemplate = function(template) {
+      ConfirmDialogService.open(
+          'are you sure you want to delete template ' + template.name + '?',
+          template.body,
+          'Delete',
+          function() {
+            ElasticService.deleteIndexTemplate(template.name,
+                function(response) {
+                  AlertService.success('Template successfully deleted',
+                      response);
+                  $scope.loadTemplates();
+                },
+                function(error) {
+                  AlertService.error('Error while deleting template', error);
+                }
+            );
+          }
+      );
+    };
+
+    $scope.loadIndexTemplate = function(template) {
+      $scope.template.name = template.name;
+      $scope.editor.setValue(JSON.stringify(template.body, undefined, 2));
+    };
+
+    $scope.initializeController = function() {
+      $scope.loadTemplates();
+      $scope.initEditor();
+    };
+  }
+]);
+
 kopf.controller('NavbarController', ['$scope', '$location',
   'ExternalSettingsService', 'ElasticService', 'AlertService',
-  'HostHistoryService', 'DebugService',
+  'HostHistoryService',
   function($scope, $location, ExternalSettingsService, ElasticService,
-           AlertService, HostHistoryService, DebugService) {
+           AlertService, HostHistoryService) {
 
     $scope.new_refresh = ExternalSettingsService.getRefreshRate();
     $scope.theme = ExternalSettingsService.getTheme();
@@ -1114,16 +1348,6 @@ kopf.controller('NavbarController', ['$scope', '$location',
     $scope.clusterStatus = undefined;
     $scope.clusterName = undefined;
     $scope.fetchedAt = undefined;
-
-    $scope.debugEnabled = DebugService.isEnabled();
-
-    $scope.$watch('debugEnabled',
-        function(newValue, oldValue) {
-          if (newValue != oldValue) {
-            DebugService.toggleEnabled();
-          }
-        }
-    );
 
     $scope.$watch(
         function() {
@@ -1475,7 +1699,7 @@ kopf.controller('RestController', ['$scope', '$location', '$timeout',
               'content. Maybe you meant to use POST or PUT?');
         }
         ElasticService.clusterRequest($scope.request.method,
-            $scope.request.path, $scope.request.body,
+            $scope.request.path, {}, $scope.request.body,
             function(response) {
               var content = response;
               try {
@@ -1869,36 +2093,15 @@ kopf.controller('WarmersController', [
 kopf.directive('ngNavbarSection', ['$location', 'ElasticService',
   function($location, ElasticService) {
 
-    function link(scope, elem, attrs) {
-      scope.$watch(
-          function() {
-            return $location.path();
-          },
-          function() {
-            var name = attrs.name;
-            var active = name === $location.path().substring(1);
-            if (active) {
-              elem.addClass('active');
-            } else {
-              elem.removeClass('active');
-            }
-          }
-      );
-    }
-
     return {
-      link: link,
       template: function(elem, attrs) {
         var visible = ElasticService.versionCheck(attrs.version);
         if (visible) {
-          var name = attrs.name;
+          var target = attrs.target;
+          var text = attrs.text;
           var icon = attrs.icon;
-          var active = name === $location.path().substring(1);
-          if (active) {
-            elem.addClass('active');
-          }
-          return '<a href="#!' + name + '">' +
-              '<i class="fa fa-fw ' + icon + '"></i> ' + name +
+          return '<a href="#!' + target + '">' +
+              '<i class="fa fa-fw ' + icon + '"></i> ' + text +
               '</a>';
         } else {
           return '';
@@ -2113,7 +2316,7 @@ function BrokenCluster(health, state, nodesStats, settings, nodes) {
 
   var totalSize = 0;
 
-  this.nodes = Object.keys(state.nodes).map(function(nodeId) {
+  this.nodes = Object.keys(nodes.nodes).map(function(nodeId) {
     var nodeStats = nodesStats.nodes[nodeId];
     var nodeInfo = nodes.nodes[nodeId];
     var node = new Node(nodeId, nodeStats, nodeInfo);
@@ -2130,6 +2333,23 @@ function BrokenCluster(health, state, nodesStats, settings, nodes) {
   this.total_size = readablizeBytes(totalSize);
   this.total_size_in_bytes = totalSize;
   this.indices = [];
+}
+
+function CatResult(result) {
+  var lines = result.split('\n');
+  var header = lines[0];
+  var columns = header.match(/\S+/g);
+  var values = lines.slice(1, -1).map(function(line) {
+    return columns.map(function(column, i) {
+      var start = header.indexOf(column);
+      var lastColumn = i < columns.length - 1;
+      var end = lastColumn ? header.indexOf(columns[i + 1]) : undefined;
+      return line.substring(start, end).trim();
+    });
+  });
+
+  this.columns = columns;
+  this.lines = values;
 }
 
 function Cluster(health, state, stats, nodesStats, settings, aliases, nodes) {
@@ -2552,6 +2772,12 @@ function ESConnection(url, withCredentials) {
 
 }
 
+function HotThread(header) {
+  this.header = header;
+  this.subHeader = undefined;
+  this.stack = [];
+}
+
 function Index(indexName, clusterState, indexStats, aliases) {
   this.name = indexName;
   this.shards = null;
@@ -2690,6 +2916,11 @@ function IndexMetadata(index, metadata) {
   };
 }
 
+function IndexTemplate(name, body) {
+  this.name = name;
+  this.body = body;
+}
+
 function Node(nodeId, nodeStats, nodeInfo) {
   this.id = nodeId;
   this.name = nodeInfo.name;
@@ -2747,6 +2978,33 @@ function Node(nodeId, nodeStats, nodeInfo) {
   function parseAddress(address) {
     return address.substring(address.indexOf('/') + 1, address.length - 1);
   }
+
+}
+
+function NodeHotThreads(data) {
+  var lines = data.split('\n');
+  this.header = lines[0];
+  this.subHeader = lines[1];
+  this.node = this.header.substring(
+      this.header.indexOf('[') + 1,
+      this.header.indexOf(']')
+  );
+  var threads = [];
+  var thread;
+  if (lines.length > 3) {
+    lines.slice(3).forEach(function(line) {
+      if (line.indexOf('       ') === 0) {
+        thread.stack.push(line);
+      } else if (line.indexOf('     ') === 0) {
+        thread.subHeader = line;
+      }
+      else if (line.indexOf('    ') === 0) {
+        thread = new HotThread(line);
+        threads.push(thread);
+      }
+    });
+  }
+  this.threads = threads;
 
 }
 
@@ -3333,6 +3591,48 @@ function IndexFilter(name, closed, special, healthy, asc, timestamp) {
 
 }
 
+function IndexTemplateFilter(name, template) {
+
+  this.name = name;
+  this.template = template;
+
+  this.clone = function() {
+    return new IndexTemplateFilter(name, template);
+  };
+
+  this.getSorting = function() {
+    return function(a, b) {
+      return a.name.localeCompare(b.name);
+    };
+  };
+
+  this.equals = function(other) {
+    return (other !== null &&
+    this.name === other.name &&
+    this.template === other.template);
+  };
+
+  this.isBlank = function() {
+    return !notEmpty(this.name) && !notEmpty(this.template);
+  };
+
+  this.matches = function(template) {
+    if (this.isBlank()) {
+      return true;
+    } else {
+      var matches = true;
+      if (notEmpty(this.name)) {
+        matches = template.name.indexOf(this.name) != -1;
+      }
+      if (matches && notEmpty(this.template)) {
+        matches = template.body.template.indexOf(this.template) != -1;
+      }
+      return matches;
+    }
+  };
+
+}
+
 function ModalControls() {
   this.alert = null;
   this.active = false;
@@ -3669,22 +3969,36 @@ kopf.factory('AlertService', function() {
   return this;
 });
 
-kopf.factory('DebugService', ['$location', function($location) {
+kopf.factory('DebugService', ['$filter', function($filter) {
 
-  this.enabled = $location.search().debug === 'true';
+  var MaxMessages = 1000;
 
-  this.toggleEnabled = function() {
-    this.enabled = !this.enabled;
-  };
+  var messages = [];
 
-  this.isEnabled = function() {
-    return this.enabled;
-  };
+  var updatedAt = 0;
 
-  this.debug = function(message) {
-    if (this.isEnabled()) {
-      console.log(message);
+  var addMessage = function(message) {
+    var date = new Date();
+    messages.push($filter('date')(date, '[yyyy-MM-dd HH:mm:ss] ') +  message);
+    if (messages.length > MaxMessages) {
+      messages.shift();
     }
+    updatedAt = date.getTime();
+  };
+
+  this.debug = function(message, data) {
+    addMessage(message);
+    if (data) {
+      addMessage(JSON.stringify(data));
+    }
+  };
+
+  this.getUpdatedAt = function() {
+    return updatedAt;
+  };
+
+  this.getMessages = function() {
+    return messages;
   };
 
   return this;
@@ -3782,23 +4096,31 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       var root = ExternalSettingsService.getElasticsearchRootPath();
       var withCredentials = ExternalSettingsService.withCredentials();
       this.connection = new ESConnection(host + root, withCredentials);
-      this.clusterRequest('GET', '/', {},
+      DebugService.debug('Elasticseach connection:', this.connection);
+      this.clusterRequest('GET', '/', {}, {},
           function(data) {
-            instance.setVersion(data.version.number);
-            instance.connected = true;
-            if (!instance.autoRefreshStarted) {
-              instance.autoRefreshStarted = true;
-              instance.autoRefreshCluster();
+            if (data.OK) { // detected https://github.com/Asquera/elasticsearch-http-basic
+              DebugService.debug('elasticsearch-http-basic plugin detected');
+              DebugService.debug('Attemping to connect with [' + host + '/]');
+              instance.connect(host + '/');
             } else {
-              instance.refresh();
+              instance.setVersion(data.version.number);
+              instance.connected = true;
+              if (!instance.autoRefreshStarted) {
+                instance.autoRefreshStarted = true;
+                instance.autoRefreshCluster();
+              } else {
+                instance.refresh();
+              }
             }
           },
           function(data) {
             if (data.status == 503) {
+              DebugService.debug('No active master, switching to basic mode');
               instance.setVersion(data.version.number);
               instance.connected = true;
               instance.setBrokenCluster(true);
-              AlertService.error('No active master node');
+              AlertService.error('No active master, switching to basic mode');
               if (!instance.autoRefreshStarted) {
                 instance.autoRefreshStarted = true;
                 instance.autoRefreshCluster();
@@ -3816,6 +4138,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
     this.setVersion = function(version) {
       this.version = {'str': version};
       if (!checkVersion.test(version)) {
+        DebugService.debug('Invalid Elasticsearch version[' + version + ']');
         throw 'Invalid Elasticsearch version[' + version + ']';
       }
       var parts = checkVersion.exec(version);
@@ -3859,7 +4182,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.createIndex = function(name, settings, success, error) {
       var path = '/' + name;
-      this.clusterRequest('POST', path, settings, success, error);
+      this.clusterRequest('POST', path, {}, settings, success, error);
     };
 
     /**
@@ -3874,7 +4197,8 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
           'cluster.routing.allocation.enable': 'all'
         }
       };
-      this.clusterRequest('PUT', '/_cluster/settings', body, success, error);
+      this.clusterRequest('PUT', '/_cluster/settings', {}, body, success,
+          error);
     };
 
     /**
@@ -3889,7 +4213,8 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
           'cluster.routing.allocation.enable': 'none'
         }
       };
-      this.clusterRequest('PUT', '/_cluster/settings', body, success, error);
+      this.clusterRequest('PUT', '/_cluster/settings', {}, body, success,
+          error);
     };
 
     /**
@@ -3908,7 +4233,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       var error = function(error) {
         AlertService.error('Error while shutting down node', error);
       };
-      this.clusterRequest('POST', path, {}, success, error);
+      this.clusterRequest('POST', path, {}, {}, success, error);
     };
 
     /**
@@ -3925,7 +4250,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       var error = function(response) {
         AlertService.error('Error while opening index', response);
       };
-      this.clusterRequest('POST', path, {}, success, error);
+      this.clusterRequest('POST', path, {}, {}, success, error);
     };
 
     /**
@@ -3937,7 +4262,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.optimizeIndex = function(index, success, error) {
       var path = '/' + index + '/_optimize';
-      this.clusterRequest('POST', path, {}, success, error);
+      this.clusterRequest('POST', path, {}, {}, success, error);
     };
 
     /**
@@ -3949,7 +4274,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.clearCache = function(index, success, error) {
       var path = '/' + index + '/_cache/clear';
-      this.clusterRequest('POST', path, {}, success, error);
+      this.clusterRequest('POST', path, {}, {}, success, error);
     };
 
     /**
@@ -3966,7 +4291,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       var error = function(error) {
         AlertService.error('Error while closing index', error);
       };
-      this.clusterRequest('POST', path, {}, success, error);
+      this.clusterRequest('POST', path, {}, {}, success, error);
     };
 
     /**
@@ -3978,7 +4303,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.refreshIndex = function(index, success, error) {
       var path = '/' + index + '/_refresh';
-      this.clusterRequest('POST', path, {}, success, error);
+      this.clusterRequest('POST', path, {}, {}, success, error);
     };
 
     /**
@@ -3990,7 +4315,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.deleteIndex = function(index, success, error) {
       var path = '/' + index;
-      this.clusterRequest('DELETE', path, {}, success, error);
+      this.clusterRequest('DELETE', path, {}, {}, success, error);
     };
 
     /**
@@ -4003,7 +4328,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.updateIndexSettings = function(name, settings, success, error) {
       var path = '/' + name + '/_settings';
-      this.clusterRequest('PUT', path, settings, success, error);
+      this.clusterRequest('PUT', path, {}, settings, success, error);
     };
 
     /**
@@ -4015,7 +4340,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.updateClusterSettings = function(settings, success, error) {
       var path = '/_cluster/settings';
-      this.clusterRequest('PUT', path, settings, success, error);
+      this.clusterRequest('PUT', path, {}, settings, success, error);
     };
 
     /**
@@ -4027,7 +4352,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.deleteWarmer = function(warmer, success, error) {
       var path = '/' + warmer.index + '/_warmer/' + warmer.id;
-      this.clusterRequest('DELETE', path, {}, success, error);
+      this.clusterRequest('DELETE', path, {}, {}, success, error);
     };
 
     /**
@@ -4040,7 +4365,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.deletePercolatorQuery = function(index, id, success, error) {
       var path = '/' + index + '/.percolator/' + id;
-      this.clusterRequest('DELETE', path, {}, success, error);
+      this.clusterRequest('DELETE', path, {}, {}, success, error);
     };
 
     /**
@@ -4052,7 +4377,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.createPercolatorQuery = function(percolator, success, error) {
       var path = '/' + percolator.index + '/.percolator/' + percolator.id;
-      this.clusterRequest('PUT', path, percolator.source, success, error);
+      this.clusterRequest('PUT', path, {}, percolator.source, success, error);
     };
 
     /**
@@ -4065,7 +4390,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.createRepository = function(repository, body, success, error) {
       var path = '/_snapshot/' + repository;
-      this.clusterRequest('POST', path, body, success, error);
+      this.clusterRequest('POST', path, {}, body, success, error);
     };
 
     /**
@@ -4077,7 +4402,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.deleteRepository = function(repository, success, error) {
       var path = '/_snapshot/' + repository;
-      this.clusterRequest('DELETE', path, {}, success, error);
+      this.clusterRequest('DELETE', path, {}, {}, success, error);
     };
 
     /**
@@ -4090,7 +4415,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.deleteSnapshot = function(repository, snapshot, success, error) {
       var path = '/_snapshot/' + repository + '/' + snapshot;
-      this.clusterRequest('DELETE', path, {}, success, error);
+      this.clusterRequest('DELETE', path, {}, {}, success, error);
     };
 
     /**
@@ -4104,7 +4429,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.restoreSnapshot = function(repository, name, body, success, error) {
       var path = '/_snapshot/' + repository + '/' + name + '/_restore';
-      this.clusterRequest('POST', path, body, success, error);
+      this.clusterRequest('POST', path, {}, body, success, error);
     };
 
     /**
@@ -4118,7 +4443,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.createSnapshot = function(repository, snapshot, body, success, error) {
       var path = '/_snapshot/' + repository + '/' + snapshot;
-      this.clusterRequest('PUT', path, body, success, error);
+      this.clusterRequest('PUT', path, {}, body, success, error);
     };
 
     /**
@@ -4130,7 +4455,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
      */
     this.executeBenchmark = function(body, success, error) {
       var path = '/_bench';
-      this.clusterRequest('PUT', path, body, success, error);
+      this.clusterRequest('PUT', path, {}, body, success, error);
     };
 
     /**
@@ -4147,7 +4472,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       }
       path += '/_warmer/' + warmer.id.trim();
       var body = warmer.source;
-      this.clusterRequest('PUT', path, body, success, error);
+      this.clusterRequest('PUT', path, {}, body, success, error);
     };
 
     /**
@@ -4166,7 +4491,91 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       remove.forEach(function(a) {
         data.actions.push({remove: a.info()});
       });
-      this.clusterRequest('POST', '/_aliases', data, success, error);
+      this.clusterRequest('POST', '/_aliases', {}, data, success, error);
+    };
+
+    /**
+     * Deletes an index template
+     *
+     * @param {string} name - template name
+     * @callback success - invoked on success
+     * @callback error - invoked on error
+     */
+    this.deleteIndexTemplate = function(name, success, error) {
+      var path = '/_template/' + name;
+      this.clusterRequest('DELETE', path, {}, {}, success, error);
+    };
+
+    /**
+     * Creates a new index template
+     *
+     * @param {IndexTemplate} template - The index template
+     * @callback success - invoked on success
+     * @callback error - invoked on error
+     */
+    this.createIndexTemplate = function(template, success, error) {
+      var path = '/_template/' + template.name;
+      var body = template.body;
+      this.clusterRequest('PUT', path, {}, body, success, error);
+    };
+
+    /**
+     * Fetches all index templates
+     * @callback success
+     * @callback error
+     */
+    this.getIndexTemplates = function(success, error) {
+      var path = '/_template';
+      var parseTemplates = function(response) {
+
+        var templates = Object.keys(response).map(function(name) {
+          return new IndexTemplate(name, response[name]);
+        });
+        success(templates);
+      };
+      this.clusterRequest('GET', path, {}, {}, parseTemplates, error);
+    };
+
+    /**
+     * Executes cat api request
+     * @callback success
+     * @callback error
+     */
+    this.executeCatRequest = function(api, success, error) {
+      var path = '/_cat/' + api + '?v';
+      var parseCat = function(response) {
+        success(new CatResult(response));
+      };
+      this.clusterRequest('GET', path, {}, {}, parseCat, error);
+    };
+
+    /**
+     * Get hot threads
+     *
+     * @param {string} node - The target node(or empty if all)
+     * @param {string} type - the type of threads to be sampled
+     * @param {string} threads - The number of threads to be sampled
+     * @param {string} interval - The sampling interval in ms
+     * @param {boolean} ignoreIdleThreads - Ignores idle threads or not
+     * @callback success
+     * @callback error
+     */
+    this.getHotThreads = function(node, type, threads, interval,
+                                  ignoreIdleThreads, success, error) {
+      var path = '/_nodes' + (node ? '/' + node : '') + '/hot_threads';
+      var params = {
+        type: type,
+        threads: threads,
+        ignore_idle_threads: ignoreIdleThreads,
+        interval: interval
+      };
+      var parseHotThreads = function(response) {
+        var threads = response.split('::: ').slice(1).map(function(data) {
+          return new NodeHotThreads(data);
+        });
+        success(threads);
+      };
+      this.clusterRequest('GET', path, params, {}, parseHotThreads, error);
     };
 
     this.getIndexMetadata = function(name, success, error) {
@@ -4174,7 +4583,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         success(new IndexMetadata(name, response.metadata.indices[name]));
       };
       var path = '/_cluster/state/metadata/' + name + '?human';
-      this.clusterRequest('GET', path, {}, transformed, error);
+      this.clusterRequest('GET', path, {}, {}, transformed, error);
     };
 
     this.getNodeStats = function(nodeId, success, error) {
@@ -4182,19 +4591,58 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         success(new NodeStats(name, response.nodes[nodeId]));
       };
       var path = '/_nodes/' + nodeId + '/stats?human';
-      this.clusterRequest('GET', path, {}, transformed, error);
+      this.clusterRequest('GET', path, {}, {}, transformed, error);
     };
 
-    this.getShardStats = function(shard, indexName, nodeId, success, error) {
-      var transformed = function(response) {
-        var shards = response.indices[indexName].shards;
-        var stats = shards[shard].filter(function(shardStats) {
-          return shardStats.routing.node === nodeId;
-        })[0];
-        success(new ShardStats(shard, indexName, stats));
-      };
-      var path = '/' + indexName + '/_stats?level=shards&human=true';
-      this.clusterRequest('GET', path, {}, transformed, error);
+    /**
+     * Fetches shard information both from index/_stats and index/_recovery
+     * @param {string} shard - shard number
+     * @param {string} index - index
+     * @param {string} nodeId - node id
+     * @callback success
+     * @callback error
+     */
+    this.getShardStats = function(shard, index, nodeId, success, error) {
+      var host = this.connection.host;
+      var params = {};
+      this.addAuth(params);
+      $q.all([
+        $http.get(host + '/' + index + '/_stats?level=shards&human', params),
+        $http.get(host + '/' + index + '/_recovery?active_only=true&human',
+            params)
+      ]).then(
+          function(responses) {
+            try {
+              var indexStats = responses[0].data;
+              var shardsStats = indexStats.indices[index].shards[shard];
+              shardsStats = shardsStats ? shardsStats : [];
+              var shardStats = shardsStats.filter(
+                  function(stats) {
+                    return stats.routing.node === nodeId;
+                  }
+              );
+              if (shardStats.length == 1) { // shard is started
+                success(new ShardStats(shard, index, shardStats[0]));
+              } else { // non started shard
+                var indexRecovery = responses[1].data;
+                var shardRecoveries = indexRecovery[index].shards.filter(
+                    function(recovery) {
+                      return recovery.target.id === nodeId &&
+                        recovery.id == shard;
+                    });
+                success(new ShardStats(shard, index, shardRecoveries[0]));
+              }
+            } catch (exception) {
+              DebugService.debug('Error parsing output:', exception);
+              DebugService.debug('REST APIs output:', responses);
+              error(exception);
+            }
+          },
+          function(response) {
+            DebugService.debug('Error requesting shard stats data:', response);
+            error(response);
+          }
+      );
     };
 
     this.fetchAliases = function(success, error) {
@@ -4214,7 +4662,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         });
         success(allAliases);
       };
-      this.clusterRequest('GET', '/_aliases', {}, createAliases, error);
+      this.clusterRequest('GET', '/_aliases', {}, {}, createAliases, error);
     };
 
     this.analyzeByField = function(index, type, field, text, success, error) {
@@ -4225,7 +4673,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         success(tokens);
       };
       var path = '/' + index + '/_analyze?field=' + type + '.' + field;
-      this.clusterRequest('POST', path, text, buildTokens, error);
+      this.clusterRequest('POST', path, {}, text, buildTokens, error);
     };
 
     this.analyzeByAnalyzer = function(index, analyzer, text, success, error) {
@@ -4236,7 +4684,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         success(tokens);
       };
       var path = '/' + index + '/_analyze?analyzer=' + analyzer;
-      this.clusterRequest('POST', path, text, buildTokens, error);
+      this.clusterRequest('POST', path, {}, text, buildTokens, error);
     };
 
     this.getIndexWarmers = function(index, warmer, success, error) {
@@ -4252,7 +4700,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         });
         success(warmers);
       };
-      this.clusterRequest('GET', path, {}, parseWarmers, error);
+      this.clusterRequest('GET', path, {}, {}, parseWarmers, error);
     };
 
     this.fetchPercolateQueries = function(index, query, success, error) {
@@ -4268,7 +4716,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         success(percolators);
       };
       var body = JSON.stringify(query);
-      this.clusterRequest('POST', path, body, parsePercolators, error);
+      this.clusterRequest('POST', path, {}, body, parsePercolators, error);
     };
 
     this.getRepositories = function(success, error) {
@@ -4279,7 +4727,7 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         success(repositories);
       };
       var path = '/_snapshot/_all';
-      this.clusterRequest('GET', path, {}, parseRepositories, error);
+      this.clusterRequest('GET', path, {}, {}, parseRepositories, error);
     };
 
     this.getSnapshots = function(repository, success, error) {
@@ -4290,24 +4738,26 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
         });
         success(snapshots);
       };
-      this.clusterRequest('GET', path, {}, parseSnapshots, error);
+      this.clusterRequest('GET', path, {}, {}, parseSnapshots, error);
     };
 
-    this.clusterRequest = function(method, path, data, success, error) {
-      var url = this.connection.host;
-      var params = {method: method, url: url + path, data: data};
-      this.addAuth(params);
-      DebugService.debug('Requesting [' + url + '] with params:');
-      DebugService.debug(params);
-      $http(params).
+    this.clusterRequest = function(method, path, params, data, success, error) {
+      var url = this.connection.host + path;
+      var config = {method: method, url: url, data: data, params: params};
+      this.addAuth(config);
+      $http(config).
           success(function(data, status, headers, config) {
             try {
               success(data);
             } catch (exception) {
+              DebugService.debug('Error parsing REST API data:', exception);
+              DebugService.debug('REST API output:', data);
               error(exception);
             }
           }).
           error(function(data, status, headers, config) {
+            DebugService.debug('Error executing request:', config);
+            DebugService.debug('REST API output:', data);
             error(data);
           });
     };
@@ -4316,8 +4766,6 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       var host = this.connection.host;
       var params = {};
       this.addAuth(params);
-      DebugService.debug('Requesting cluster information with params:');
-      DebugService.debug(params);
       $q.all([
         $http.get(host +
         '/_cluster/state/master_node,routing_table,blocks/', params),
@@ -4342,10 +4790,13 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
                       aliases, nodes)
               );
             } catch (exception) {
+              DebugService.debug('Error parsing cluster data:', exception);
+              DebugService.debug('REST APIs output:', responses);
               error(exception);
             }
           },
           function(response) {
+            DebugService.debug('Error requesting cluster data:', response);
             error(response);
           }
       );
@@ -4355,8 +4806,6 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
       var host = this.connection.host;
       var params = {};
       this.addAuth(params);
-      DebugService.debug('Requesting cluster information with params:');
-      DebugService.debug(params);
       $q.all([
         $http.get(host +
             '/_cluster/state/master_node,blocks?local=true',
@@ -4377,11 +4826,15 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
                   new BrokenCluster(health, state, nodesStats, settings, nodes)
               );
             } catch (exception) {
+              DebugService.debug('Error parsing cluster data:', exception);
+              DebugService.debug('REST APIs output:', responses);
               error(exception);
             }
           },
           function(response) {
-            AlertService.error('Error refreshing cluster state', response);
+            DebugService.debug('Error requesting cluster data:', params);
+            DebugService.debug('REST API output:', response);
+            AlertService.error('Error requesting cluster data', response);
             instance.cluster = undefined;
           }
       );
@@ -4431,14 +4884,11 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
                 function(brokenCluster) {
                   instance.cluster = brokenCluster;
                   if (instance.cluster.status !== 'red') {
+                    DebugService.debug('Switching to normal mode');
                     instance.setBrokenCluster(false);
                   }
                 },
                 function(response) {
-                  AlertService.error(
-                      'Error refreshing cluster state',
-                      response
-                  );
                   instance.cluster = undefined;
                 }
             );
@@ -4457,13 +4907,11 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
                 },
                 function(response) {
                   if (response.status === 503) {
-                    AlertService.error('No active master node');
+                    var message = 'No active master, switching to basic mode';
+                    DebugService.debug(message);
+                    AlertService.error(message);
                     instance.setBrokenCluster(true);
                   } else {
-                    AlertService.error(
-                        'Error refreshing cluster state',
-                        response
-                    );
                     instance.cluster = undefined;
                   }
                 }
@@ -4499,14 +4947,14 @@ kopf.factory('ElasticService', ['$http', '$q', '$timeout', '$location',
 
     /**
      * Adds authentication information/cookies to request params
-     * @param {Object} params - request parameters
+     * @param {Object} config - request config
      */
-    this.addAuth = function(params) {
+    this.addAuth = function(config) {
       if (isDefined(this.connection.auth)) {
-        params.headers = {Authorization: this.connection.auth};
+        config.headers = {Authorization: this.connection.auth};
       }
       if (this.connection.withCredentials) {
-        params.withCredentials = true;
+        config.withCredentials = true;
       }
     };
 
@@ -4666,14 +5114,18 @@ kopf.factory('HostHistoryService', function() {
 
 });
 
-kopf.factory('PageService', ['ElasticService', '$rootScope', '$document',
-  function(ElasticService, $rootScope, $document) {
+kopf.factory('PageService', ['ElasticService', 'DebugService', '$rootScope',
+  '$document', function(ElasticService, DebugService, $rootScope, $document) {
+
     var instance = this;
 
-    var link = $document[0].querySelector('link[rel~=\'icon\']');
+    this.clusterStatus = undefined;
+    this.clusterName = undefined;
 
-    if (link) {
-      var faviconUrl = link.href;
+    this.link = $document[0].querySelector('link[rel~=\'icon\']');
+
+    if (this.link) {
+      var faviconUrl = this.link.href;
       var img = $document[0].createElement('img');
       img.src = faviconUrl;
     }
@@ -4688,29 +5140,43 @@ kopf.factory('PageService', ['ElasticService', '$rootScope', '$document',
         }
     );
 
-    this.setPageTitle = function(clusterName) {
-      if (clusterName) {
-        $rootScope.title = 'kopf[' + clusterName + ']';
-      } else {
-        $rootScope.title = 'kopf - no connection';
+    /**
+     * Updates page title if name is different than clusterName
+     *
+     * @param {string} name - cluster name
+     */
+    this.setPageTitle = function(name) {
+      if (name !== this.clusterName) {
+        if (name) {
+          $rootScope.title = 'kopf[' + name + ']';
+        }
+        else {
+          $rootScope.title = 'kopf - no connection';
+        }
+        this.clusterName = name;
       }
     };
 
     this.setFavIconColor = function(status) {
-      if (link) {
-        var colors = {green: '#468847', yellow: '#c09853', red: '#B94A48'};
-        var color = status ? colors[status] : '#333';
-        var canvas = $document[0].createElement('canvas');
-        canvas.width = 16;
-        canvas.height = 16;
-        var context = canvas.getContext('2d');
-        context.drawImage(img, 0, 0);
-        context.globalCompositeOperation = 'source-in';
-        context.fillStyle = color;
-        context.fillRect(0, 0, 16, 16);
-        context.fill();
-        link.type = 'image/x-icon';
-        link.href = canvas.toDataURL();
+      if (this.link && this.clusterStatus !== status) {
+        this.clusterStatus = status;
+        try {
+          var colors = {green: '#468847', yellow: '#c09853', red: '#B94A48'};
+          var color = status ? colors[status] : '#333';
+          var canvas = $document[0].createElement('canvas');
+          canvas.width = 32;
+          canvas.height = 32;
+          var context = canvas.getContext('2d');
+          context.drawImage(img, 0, 0);
+          context.globalCompositeOperation = 'source-in';
+          context.fillStyle = color;
+          context.fillRect(0, 0, 32, 32);
+          context.fill();
+          this.link.type = 'image/x-icon';
+          this.link.href = canvas.toDataURL();
+        } catch (exception) {
+          DebugService.debug('Error while changing favicon', exception);
+        }
       }
     };
 
