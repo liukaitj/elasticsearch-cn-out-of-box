@@ -3,6 +3,9 @@ elasticsearch-cn-out-of-box
 
 为elasticsearch集成一些实用插件以及配置的开箱即用的版本。
 
+Dockerfile [](https://github.com/hangxin1940/docker-elasticsearch-cn)
+`docker pull hangxin1940/docker-elasticsearch-cn:v1.6.0`
+
 ======
 
 * [elasticsearch](http://www.elastic.co/) v1.6.0
