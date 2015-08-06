@@ -1,29 +1,29 @@
 # 集群名
-#cluster.name: "cn-out-of-box"
+cluster.name: "cn-out-of-box"
 # 节点名
-#node.name: "node1"
+node.name: "nodelocal"
 # 是否有资格成为主节点
-#node.master: true
+node.master: true
 # 是否存储索引数据
-#node.data: true
+node.data: true
 # 默认索引分片数
-#index.number_of_shards: 3
+index.number_of_shards: 3
 # 默认索引副本数
-#index.number_of_replicas: 1
+index.number_of_replicas: 1
 # 临时文件存储路路径
 #path.work: "/tmp/elasticsearch"
 # 日志文件存储路路径
 #path.logs:  "/var/log/elasticsearch/logs"
 # tcp传输端口
-#transport.tcp.port: 9300
+transport.tcp.port: 9300
 # 是否压缩tcp传输数据
 transport.tcp.compress: true
 # http端口
-#http.port: 9200
+http.port: 9200
 # 是否开启http服务
 #http.enabled: true
 # 是否打开多播发现节点
-#discovery.zen.ping.multicast.enabled: true
+discovery.zen.ping.multicast.enabled: true
 
 #http.max_content_length: 100mb
 
@@ -298,6 +298,10 @@ index:
       ik_smart:
         type: ik
         use_smart: true
+        
+      # ik拼音分词
+      ikpinyin:
+        type: org.elasticsearch.index.analysis.IkAnalyzerProviderP
 
  # ======== mmseg  ========    
        # mmseg分词器
@@ -358,7 +362,7 @@ index:
         tokenizer: my_pinyin
         filter:
         - lowercase
-        - nGram
+        #- nGram
         - trim
         - unique
 
@@ -484,9 +488,9 @@ index:
           - simple_english_analyzer
 
 # 线程池设置
-#threadpool:   
-#   index:   
-#       type: fixed   
-#        size: 30   
-#       queue: -1   
-#        reject_policy: caller  
+threadpool:   
+    index:   
+        type: fixed   
+        size: 30   
+        queue: -1   
+        reject_policy: caller  

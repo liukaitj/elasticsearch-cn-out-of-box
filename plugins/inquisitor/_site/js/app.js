@@ -19,6 +19,7 @@ angular.module('inquisitor.service', [])
 			'ik',
 			'ik_max_word',
 			'ik_smart',
+			'ikpinyin',
 			'mmseg',
 			'mmseg_maxword',
 			'mmseg_complex',

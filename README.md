@@ -28,6 +28,7 @@ Dockerfile [docker-elasticsearch-cn](https://github.com/hangxin1940/docker-elast
 * [analysis-smartcn](https://github.com/elasticsearch/elasticsearch-analysis-smartcn) v2.6.0
 * [analysis-mmseg](https://github.com/medcl/elasticsearch-analysis-mmseg) v1.2.2
 * [analysis-ik](https://github.com/medcl/elasticsearch-analysis-ik) v1.3.0
+* [analysis-ik-pinyin](https://github.com/liukaitj/elasticsearch-analysis-ik-pinyin) v1.4.0P
 * [analysis-stconvert](https://github.com/medcl/elasticsearch-analysis-stconvert) v1.3.0
 * [analysis-pinyin](https://github.com/medcl/elasticsearch-analysis-pinyin) v1.2.2
 * [analysis-ansj](https://github.com/4onni/elasticsearch-analysis-ansj) v1.x.1
@@ -59,7 +60,7 @@ Dockerfile [docker-elasticsearch-cn](https://github.com/hangxin1940/docker-elast
 # 集群名
 cluster.name: "cn-out-of-box"
 # 节点名
-node.name: "node1"
+node.name: "nodelocal"
 # 是否有资格成为主节点
 node.master: true
 # 是否存储索引数据
@@ -322,6 +323,10 @@ index:
       ik_smart:
         type: ik
         use_smart: true
+        
+      # ik拼音分词
+      ikpinyin:
+        type: org.elasticsearch.index.analysis.IkAnalyzerProviderP
 
  # ======== mmseg  ========    
        # mmseg分词器
@@ -382,7 +387,7 @@ index:
         tokenizer: my_pinyin
         filter:
         - lowercase
-        - nGram
+        #- nGram
         - trim
         - unique
 
