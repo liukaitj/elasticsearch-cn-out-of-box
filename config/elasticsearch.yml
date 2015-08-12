@@ -13,7 +13,9 @@ index.number_of_replicas: 1
 # 临时文件存储路路径
 #path.work: "/tmp/elasticsearch"
 # 日志文件存储路路径
-#path.logs:  "/var/log/elasticsearch/logs"
+path.logs:  "/logs"
+# 数据文件存储路路径
+path.data:  "/data"
 # tcp传输端口
 transport.tcp.port: 9300
 # 是否压缩tcp传输数据
